@@ -20,10 +20,10 @@ IST = timezone(timedelta(hours=5, minutes=30))
 # ---------------------------------------------------------------------------
 # Instrument configuration
 # ---------------------------------------------------------------------------
-# type: "nse" (yfinance), "crypto" (Binance), "forex" (Twelve Data)
+# type: "index" (Twelve Data), "crypto" (Binance), "forex" (Twelve Data)
 INSTRUMENTS = {
-    "NIFTY":     {"type": "nse",    "symbol": "^NSEI"},
-    "BANKNIFTY": {"type": "nse",    "symbol": "^NSEBANK"},
+    "NIFTY":     {"type": "index",  "symbol": "NIFTY 50"},
+    "BANKNIFTY": {"type": "index",  "symbol": "NIFTY BANK"},
     "BITCOIN":   {"type": "crypto", "symbol": "BTCUSDT"},
     "ETHEREUM":  {"type": "crypto", "symbol": "ETHUSDT"},
     "EURUSD":    {"type": "forex",  "symbol": "EUR/USD"},
@@ -88,16 +88,24 @@ def is_forex_market_open() -> bool:
 # ---------------------------------------------------------------------------
 # Price fetchers
 # ---------------------------------------------------------------------------
-def fetch_nse_price(symbol: str):
+def fetch_twelve_data_price(symbol: str):
+    if not TWELVE_DATA_API_KEY:
+        logger.error("TWELVE_DATA_API_KEY not set, price fetch skipped.")
+        return None
     try:
-        import yfinance as yf
-        ticker = yf.Ticker(symbol)
-        data = ticker.history(period="1d", interval="1m")
-        if data.empty:
+        response = requests.get(
+            "https://api.twelvedata.com/price",
+            params={"symbol": symbol, "apikey": TWELVE_DATA_API_KEY},
+            timeout=10,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if "price" not in data:
+            logger.error(f"Twelve Data price fetch error ({symbol}): {data}")
             return None
-        return float(data["Close"].iloc[-1])
+        return float(data["price"])
     except Exception as e:
-        logger.error(f"NSE price fetch error ({symbol}): {e}")
+        logger.error(f"Twelve Data price fetch error ({symbol}): {e}")
         return None
 
 
@@ -115,38 +123,17 @@ def fetch_crypto_price(symbol: str):
         return None
 
 
-def fetch_forex_price(symbol: str):
-    if not TWELVE_DATA_API_KEY:
-        logger.error("TWELVE_DATA_API_KEY not set, forex price fetch skipped.")
-        return None
-    try:
-        response = requests.get(
-            "https://api.twelvedata.com/price",
-            params={"symbol": symbol, "apikey": TWELVE_DATA_API_KEY},
-            timeout=10,
-        )
-        response.raise_for_status()
-        data = response.json()
-        if "price" not in data:
-            logger.error(f"Forex price fetch error ({symbol}): {data}")
-            return None
-        return float(data["price"])
-    except Exception as e:
-        logger.error(f"Forex price fetch error ({symbol}): {e}")
-        return None
-
-
 def get_price(name: str, config: dict):
-    if config["type"] == "nse":
+    if config["type"] == "index":
         if not is_nse_market_open():
             return None
-        return fetch_nse_price(config["symbol"])
+        return fetch_twelve_data_price(config["symbol"])
     elif config["type"] == "crypto":
         return fetch_crypto_price(config["symbol"])
     elif config["type"] == "forex":
         if not is_forex_market_open():
             return None
-        return fetch_forex_price(config["symbol"])
+        return fetch_twelve_data_price(config["symbol"])
     return None
 
 
@@ -330,3 +317,4 @@ _worker_thread.start()
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+    
