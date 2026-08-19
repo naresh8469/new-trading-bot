@@ -20,10 +20,11 @@ IST = timezone(timedelta(hours=5, minutes=30))
 # ---------------------------------------------------------------------------
 # Instrument configuration
 # ---------------------------------------------------------------------------
-# type: "index" (Twelve Data), "crypto" (Binance), "forex" (Twelve Data)
+# type: "index" (Twelve Data — using liquid ETF proxies since Twelve Data's free
+# plan doesn't include raw index data), "crypto" (Binance), "forex" (Twelve Data)
 INSTRUMENTS = {
-    "NIFTY":     {"type": "index",  "symbol": "NIFTY 50"},
-    "BANKNIFTY": {"type": "index",  "symbol": "NIFTY BANK"},
+    "NIFTY":     {"type": "index",  "symbol": "NIFTYBEES"},
+    "BANKNIFTY": {"type": "index",  "symbol": "BANKBEES"},
     "BITCOIN":   {"type": "crypto", "symbol": "BTCUSDT"},
     "ETHEREUM":  {"type": "crypto", "symbol": "ETHUSDT"},
     "EURUSD":    {"type": "forex",  "symbol": "EUR/USD"},
